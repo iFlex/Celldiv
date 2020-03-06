@@ -33,21 +33,50 @@ class CellEventManager {
 		this.listeners = {}
 	}
 
-	onEvent(event) {
-		//bubble up event untill lookup works
-		console.log(event);
+	dispatch(context) {
+		let listeners = this.listeners[context.event.type]
+		for(let i in listeners){
+			listeners[i](context)
+		}
 	}
 
+	static findClosestCellAncestor(event){
+		var closest_ancestor = event.target;
+		while((closest_ancestor.id == null || CELL_REGISTRY.get(closest_ancestor.id) == null) && closest_ancestor != document.body) {
+			closest_ancestor = (closest_ancestor.parentElement || closest_ancestor.parentNode);
+		}
+
+		if(closest_ancestor.id != null){
+			return CELL_REGISTRY.get(closest_ancestor.id);
+		}
+		return null;
+	}
+
+	static onEvent(event) {
+		console.log(event)
+		let cellTarget = CellEventManager.findClosestCellAncestor(event);
+		let enrichedEvent = {"event":event,"cell":cellTarget}
+		
+		//ToDo: fix this as it's a dirty azz workaround
+		CELL_EVENT_MANAGER.dispatch(enrichedEvent)
+	}
+
+	//very simplistic, needs revision
 	addEventListener(event, func) {
 		
-	}
+		if(this.listeners[event] == null){
+			this.listeners[event] = []
+		}
+
+		this.listeners[event].push(func)
+	}q
 
 	removeEventListener(event, func) {
 
 	}
 }
 
-let EVENT_MANAGER = new CellEventManager();
+let CELL_EVENT_MANAGER = new CellEventManager();
 
 export class AbstractCell { 
 
@@ -94,14 +123,26 @@ export class AbstractCell {
 
   enableEvents(events){
   	for(let i in events){
-  		console.log("Enabling:"+events[i])
-  		this._domref.addEventListener(events[i], EVENT_MANAGER.onEvent);
+  		this._domref.addEventListener(events[i], CellEventManager.onEvent);
   	}
   }
 
   disableEvents(events){
   	for(let i in events){
-  		this._domref.removeEventListener(events[i], EVENT_MANAGER.onEvent);
+  		this._domref.removeEventListener(events[i], CellEventManager.onEvent);
+  	}
+  }
+
+  resize(percentage) {
+  	if(this.parent) {
+  		this.parent.leftChild().snapToParent(percentage);
+  		this.parent.rightChild().snapToParent(100 - percentage);
+  	}
+  }
+
+  kill() {
+  	if(this.parent) {
+  		this.parent._domref.removeChild(this._domref);
   	}
   }
 }
@@ -120,10 +161,6 @@ export class ScreenCell extends AbstractCell {
   	this._domref.style.height = this.height + '%';
   }
 
-  kill() {
-
-  }
-
   getLeafOffpring() {
 
   }
@@ -134,12 +171,17 @@ export class StemCell extends AbstractCell {
   constructor(mode, percentageSize, parent) {
   	super(parent.DOMref());
 
+  	this.parent = parent;
   	this.percentageSize = percentageSize
   	this.mode = mode
   	this.snapToParent();
   }
 
-  snapToParent() {
+  snapToParent(percentage) {
+  	if(percentage != null) {
+  		this.percentageSize = percentage;
+  	}
+
   	if(this.mode === DivisionModes.VERTICAL) {
   		this.width = this.percentageSize;
   		this.height = 100;
@@ -156,10 +198,6 @@ export class StemCell extends AbstractCell {
   getSize() {
   	return this.percentageSize
   }
-
-  kill() {
-
-  }
 }
 
-export {CELL_REGISTRY};
+export {CELL_REGISTRY, CELL_EVENT_MANAGER};
