@@ -29,7 +29,7 @@ class CellRegistry {
 let CELL_REGISTRY = new CellRegistry();
 
 class CellEventManager {
-	constructor(){
+	constructor() {
 		this.listeners = {}
 	}
 
@@ -40,20 +40,24 @@ class CellEventManager {
 		}
 	}
 
-	static findClosestCellAncestor(event){
+	static findClosestCellAncestor(event) {
 		var closest_ancestor = event.target;
-		while((closest_ancestor.id == null || CELL_REGISTRY.get(closest_ancestor.id) == null) && closest_ancestor != document.body) {
+		while((closest_ancestor.id === null || CELL_REGISTRY.get(closest_ancestor.id) === null) && closest_ancestor !== document.body) {
 			closest_ancestor = (closest_ancestor.parentElement || closest_ancestor.parentNode);
 		}
 
-		if(closest_ancestor.id != null){
-			return CELL_REGISTRY.get(closest_ancestor.id);
+		if(closest_ancestor.id !== null) {
+      var closestCell = CELL_REGISTRY.get(closest_ancestor.id);
+      while(closestCell !== null && !(closestCell.isSubsystmEnabled('events') === true)) {
+        closestCell = closestCell.getParent();
+      } 
+
+			return closestCell; 
 		}
 		return null;
 	}
 
 	static onEvent(event) {
-		console.log(event)
 		let cellTarget = CellEventManager.findClosestCellAncestor(event);
 		let enrichedEvent = {"event":event,"cell":cellTarget}
 		
@@ -85,11 +89,16 @@ export class AbstractCell {
   	this._domref = document.createElement("div");
   	this._domref.style.overflow = "hidden";
     this._domref.style.whiteSpace = "nowrap";
-  	
+  	this.parent = null;
+
   	parentDOM.appendChild(this._domref);
   	
   	this.id = CELL_REGISTRY.register(this);
   	this._domref.id = this.id;
+
+    this.enabledSubsystems = {
+      'events':false  
+    }
   }
 
   divide(mode, percentageSize) {
@@ -121,16 +130,24 @@ export class AbstractCell {
   	this._domref.innerHTML = "";
   }
 
-  enableEvents(events){
+  enableEvents(events) {
+    this.enabledSubsystems['events'] = true;
+
   	for(let i in events){
   		this._domref.addEventListener(events[i], CellEventManager.onEvent);
   	}
   }
 
-  disableEvents(events){
+  disableEvents(events) {
+    this.enabledSubsystems['events'] = false;
+
   	for(let i in events){
   		this._domref.removeEventListener(events[i], CellEventManager.onEvent);
   	}
+  }
+
+  isSubsystmEnabled(sys) {
+    return this.enabledSubsystems[sys] === true;
   }
 
   resize(percentage) {
@@ -144,6 +161,10 @@ export class AbstractCell {
   	if(this.parent) {
   		this.parent._domref.removeChild(this._domref);
   	}
+  }
+
+  getParent() {
+    return this.parent;
   }
 }
 

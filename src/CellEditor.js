@@ -18,16 +18,19 @@ var tentative_left = null;
 var tentative_right = null;
 var last_target = null
 var split_mode = DivisionModes.HORIZONTAl;
+var events = ["mouseenter","mousemove","click"];
 
 window.onkeypress = function(e){
 	if(e.key == "q"){
-		clear_tentative();
+		clear_tentative_split();
+		
 		if(split_mode == DivisionModes.HORIZONTAl){
 			split_mode = DivisionModes.VERTICAL;
 		} else {
 			split_mode = DivisionModes.HORIZONTAl;
 		}
-		update_tentative();
+
+		draw_tentative_split();
 	}
 
 	if(e.key >= '1' && e.key <= '9'){
@@ -43,63 +46,65 @@ window.onkeypress = function(e){
 
 CELL_EVENT_MANAGER.addEventListener("mouseenter", function(e){
 	last_target = e.cell;
-	clear_tentative();
-	update_tentative();
+	clear_tentative_split();
+	draw_tentative_split(last_target);
 });
 
 CELL_EVENT_MANAGER.addEventListener("mousemove", function(e){
 	last_target = e.cell;
-	update_tentative(calculate_ratio(e));
+	resize_tentative_split(e);
 });
 
 CELL_EVENT_MANAGER.addEventListener("click", function(e){
-	//console.log(e);
-	clear_tentative();
-	e.cell.divide(split_mode, 50);
-	last_target = e.cell.leftChild();
+	clear_tentative_split();
+	//e.cell.divide(split_mode, 50);
+	//last_target = e.cell.leftChild();
 });
 
 function new_screen_cell(){
 	let sc = new ScreenCell(100, document.body);
-	sc.enableEvents(["mouseenter","mousemove","click"])
+	sc.enableEvents(events)
 }
 
-function new_tentative_draw(){
-	if(last_target != null){
-		last_target.divide(split_mode, 50);
-		tentative_left = last_target.leftChild();
-		tentative_right = last_target.rightChild();
+function draw_tentative_split(target){
+	clear_tentative_split();
+	
+	if(target != null) {
+	 	target.divide(split_mode, 50);
 
-		tentative_left.disableEvents(["mouseenter","mousemove","click"])
-		tentative_right.disableEvents(["mouseenter","mousemove","click"])
+	 	tentative_left = target.leftChild();
+	 	tentative_right = target.rightChild();
 	}
 }
 
-function update_tentative(ratio) {
-	if(ratio == null){
-		ratio = 50;
-	}
-
-	if(tentative_left == null){
-		new_tentative_draw(ratio);
-	} else {
+function resize_tentative_split(e){
+	if(tentative_left !== null && tentative_right !== null) {
+		let ratio = calculate_tentative_split_ratio(e);
+		
 		tentative_left.resize(ratio);
 		tentative_right.resize(100 - ratio);
 	}
 }
 
-function clear_tentative(){
-	if(tentative_left != null){
+function clear_tentative_split(){
+	if(tentative_left !== null) {
 		tentative_left.kill();
-		tentative_right.kill();
-
 		tentative_left = null;
+	}
+	if(tentative_right !== null) {
+		tentative_right.kill();
 		tentative_right = null;
 	}
 }
 
-function calculate_ratio(e){
-	let ratio = (e.event.clientX/e.cell.DOMref().clientWidth)*100
+function calculate_tentative_split_ratio(e){
+	var ratio = 0
+	if(split_mode == DivisionModes.VERTICAL) {
+		ratio = 100 - (e.event.clientX/e.cell.DOMref().clientWidth)*100;
+	} else {
+		ratio = 100 - (e.event.clientY/e.cell.DOMref().clientHeight)*100;
+	}
+	
 	if(ratio < 0)
 		return 0;
 	if(ratio > 100)
