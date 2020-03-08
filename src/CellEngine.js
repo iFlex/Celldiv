@@ -73,7 +73,7 @@ class CellEventManager {
 		}
 
 		this.listeners[event].push(func)
-	}q
+	}
 
 	removeEventListener(event, func) {
 
